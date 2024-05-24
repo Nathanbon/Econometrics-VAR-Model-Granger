@@ -1,0 +1,492 @@
+---
+title: "TD2- Advanced Times Series"
+author: "Nathan BONNEAU"
+date: "2024-04-06"
+output:
+  html_document: default
+  pdf_document: default
+warning: no
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+```
+# VAR avec des données non stationnaires et IRF
+### Question 1 : vérifier le degrée d'intégration et quelle est la solution ?
+```{r obs2002}
+library(vars)
+```
+
+
+```{r obs1}
+#library(vars)
+data(Canada)
+plot(Canada)
+employment<- Canada[,1]
+labor <- Canada[,2]
+realwages <- Canada[,3]
+unemployement <- Canada[,4]
+```
+
+On va réaliser des tests ADF pour les 4 courbes en les décompossant et en prenant le nombre de lag optimal en utilisant le critère BIC.
+Labor case :
+```{r obs2,}
+#plot(labor)
+trendlabor <- ur.df(labor, type="trend", selectlags=c("BIC"))
+summary(trendlabor)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.45 contre -2.02 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Nous passons à l'étude du drift :
+```{r obs3,}
+driftlabor <- ur.df(labor, type="drift", selectlags=c("BIC"))
+summary(driftlabor)
+```
+Même constatation que précédemment, on a -2.89< -0.11 au seuil de 5% donc non stationnaire.
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r obs4,}
+difflabor = na.omit(diff(labor, differences = 1))
+difftrendlabor <- ur.df(difflabor , type = "trend", selectlags = c("BIC"))
+summary(difftrendlabor)
+```
+Maintenant, nous sommes bon, la courbe labor différenciée une fois est stationnaire car -3.45>-5.19 donc nous avons réussi à la rendre stationnaire et rejette H0.
+```{r obs5,}
+diffdriftlabor <- ur.df(difflabor, type="drift", selectlags=c("BIC"))
+summary(diffdriftlabor)
+```
+Pareil ici, on rejette h0 donc la série différenciée est stationnaire. 
+
+Unemployement case (on refait la même) :
+```{r pressure,eval=FALSE}
+plot(unemployement)
+trendunemployement <- ur.df(unemployement, type="trend", selectlags=c("BIC"))
+summary(trendunemployement)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.45 contre -2.46 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Nous passons à l'étude du drift 
+```{r pressure1}
+driftunemployement <- ur.df(unemployement, type="drift", selectlags=c("BIC"))
+summary(driftunemployement)
+
+```
+Même constatation que précédemment, on a -2.89< -2.22 au seuil de 5% donc non stationnaire.
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r pressure2}
+diffunemployement = na.omit(diff(unemployement, differences = 1))
+difftrendunemployement <- ur.df(diffunemployement , type = "trend", selectlags = c("BIC"))
+summary(difftrendunemployement)
+```
+Maintenant, nous sommes bon, la courbe unemployement différenciée une fois est stationnaire car -3.45>-4.07 donc nous avons réussi à la rendre stationnaire et rejette H0.
+
+```{r pressure3, eval=FALSE}
+diffdriftunemployement <- ur.df(diffunemployement, type="drift", selectlags=c("BIC"))
+summary(diffdriftunemployement)
+```
+Pareil ici, on rejette h0 donc la série différenciée est stationnaire. 
+
+Employement case :
+```{r pressure4, eval=FALSE}
+plot(employment)
+trendemployment <- ur.df(employment, type="trend", selectlags=c("BIC"))
+summary(trendemployment)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.45 contre -2.72 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Nous passons à l'étude du drift 
+```{r pressure5, eval=FALSE}
+driftemployment <- ur.df(employment, type="drift", selectlags=c("BIC"))
+summary(driftemployment)
+```
+Même constatation que précédemment, on a -2.89< -0.29 au seuil de 5% donc non stationnaire.
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r pressure6}
+diffemployment = na.omit(diff(employment, differences = 1))
+difftrendemployment <- ur.df(diffemployment , type = "trend", selectlags = c("BIC"))
+summary(difftrendemployment)
+```
+Maintenant, nous sommes bon, la courbe employment différenciée une fois est stationnaire car -3.45>-4.54 donc nous avons réussi à la rendre stationnaire et rejette H0.
+```{r pressure7, eval=FALSE}
+diffdriftemployment <- ur.df(diffemployment, type="drift", selectlags=c("BIC"))
+summary(diffdriftemployment)
+```
+Pareil ici, on rejette h0 donc la série différenciée est stationnaire. 
+
+Real wages case :
+```{r pressure8, eval=FALSE}
+diffdriftemployment <- ur.df(diffemployment, type="drift", selectlags=c("BIC"))
+summary(diffdriftemployment)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.45 contre -2.81 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r pressure9}
+diffrealwages = na.omit(diff(realwages, differences = 1))
+difftrendrealwages <- ur.df(diffrealwages , type = "trend", selectlags = c("BIC"))
+summary(difftrendrealwages)
+```
+Pareil ici, on rejette h0 donc la série différenciée est stationnaire. 
+Nous avons réussi à rendre stationnaire les 4 données en les différenciant une fois et en vérifiant au seuil 95% avec le test ADF.
+
+### Question 2 : Calculons la valeur du AIC pour différentes valeur de retard et trouvons la valeur p qui minimise le AIC.
+Nous allons calculer nos critères jusqu'à 5 retards
+```{r obs20,}
+bic <- numeric(5)
+aic <- numeric(5)
+```
+Voici nos nouvelles données différenciés une fois :
+```{r obs21,}
+canadadiff <- data.frame(diffemployment,difflabor, diffrealwages, diffunemployement)
+for (lag in 1:5){
+  var <- VAR(canadadiff, p=lag, type="const")
+  bic[lag] <- BIC(var)
+  aic[lag] <- AIC(var)
+}
+print(aic)
+print(bic)
+```
+Je sélectionne maintenant le niveau de aic et bic le plus petit pour définir le nombre de retards à prendre.
+
+```{r obs22,}
+lagBIC <- which.min(bic)
+lagAIC <- which.min(aic)
+lagBIC
+lagAIC
+plag = lagBIC
+```
+BIC m'indique de prendre 1 retard tandis que AIC me conseille de prendre 4 retard. 
+BIC est mieux en général dans le cas des VAR et est souvent plus faible ici donc facilite les calculs.
+
+### Question 3 : Estimons les valeurs des coefficients de notre modèle VAR avec le bon nombre de retard
+
+```{r obs23,}
+modelVAR = VAR(canadadiff, p = plag, type = "const")
+modelVAR
+```
+
+### Question 4 : Calculons les résidus des variables et de la matrice variance-covariance. 
+
+```{r obs24,}
+residus = residuals(modelVAR)
+covarianceresid = cov(residus)
+covarianceresid
+```
+Matrice covariance variance pas diagonale donc enfaite nos résidus sont corrélés ce qui signifie que les erreurs sont potentiellements non significativité car lien entre nos résidus.
+
+### Question 5 : Obtenons les coefficients de la matrice ψ de notre VMA(infini) representation
+Déjà on peut affirmer qu'une représentation sous forme d'un VMA(infini) est possible car nous avons un VAR bien stationnaire.
+```{r obs25,}
+Psi(modelVAR)
+```
+### Question 6 : Calcuons l'ensemble des fonctions impulsions et vérifions la stabilité.
+On va simuler un choc sur une variable et étudier les évolutions des autres variables sur des périodes postérieures à ce choc.
+```{r obs28,}
+noms_endogenes <- colnames(modelVAR$y)
+nomsvariables <- c("diffemployment", "difflabor", "diffrealwages", "diffunemployment")
+i <- 1
+j <- 1
+plotchoc <- list()
+
+while (i <= length(nomsvariables)) {
+  while (j <= length(nomsvariables)) {
+    if (nomsvariables[i] %in% noms_endogenes & nomsvariables[j] %in% noms_endogenes) {
+      ir <- irf(modelVAR, impulse = nomsvariables[i], response = nomsvariables[j], n.ahead = 10)
+      irfunct <- plot(ir, main = paste("choc/impulsion:", nomsvariables[i], "- Réponse:", nomsvariables[j]), 
+                                col = c("blue", "red"), ylab = "effect", xlab = "Période")
+      
+      plotchoc[[length(plotchoc) + 1]] <- irfunct
+    }
+    j <- j + 1
+  }
+  i <- i + 1
+  j <- 1
+}
+
+```
+
+L'impulsion sur l'emploi entraîne un choc positif dans un premier temps sur productivité du travail, logique d'un point de vue économique. Mais ce n'est pas très significatif car 0 appartient à l'intervalle de confiance.
+L'impulsion sur l'emploi entrâine un choc négatif sur les salaires réels. Pas significatif
+L'impulsion sur la productivité au travail entraîne un choc positif sur les emplois.Logique d'un point de vue économique.
+L'impulsion sur la productivité au travail entraîne un choc négatif significatif sur les salaires réels.
+L'impulsion sur les salaires réels entraîne choc non significatif négatif sur les emplois.
+L'impulsion sur salaires réels entraîne choc non significatif négatif sur la productivité au travail.
+
+On regarde les racines de notre modèles VAR et ont vérifie qu'elles sont inférieures à 1 en module.
+```{r obs26,}
+roots <- roots(modelVAR)
+roots
+```
+Elles sont bien inférieures à 1, ainsi notre VAR est bien stationnaire.
+
+# Causalité au sens de Granger
+
+### Question 1 : Générer le modèle VAR(3,2) écrit dans l'énoncé
+```{r obs30,}
+set.seed(123)
+t<-1000
+n <- 3 #variables
+p <- 2 #lags
+e <- mvrnorm(n= t, mu = rep(0, n), Sigma = diag(n))
+c <- matrix(c(4,8,3),n) #
+A.1 <- matrix(c(-.5,-.1,0,.2,0,.2,-0.4,-.6,.1),nrow =n, byrow = TRUE)
+A.2 <- matrix(c(.3,.1,0,.1,-.3,-.1,0,-.2,.3),nrow =n, byrow = TRUE) #coeff matrix of lag 2
+series <- matrix(0,nrow=t,ncol=n)#raw series with zeros
+
+
+for (i in (p+1):(t)){
+  series[i,]<- c+e[i,] + A.1%*%series[i-1,]+A.2%*%series[i-2,]
+}
+#series
+```
+
+### Question 2 :vérifions la stationnarité du modèle en affichant les racines du modèle
+```{r obs31,}
+model <- VAR(series, p = p)
+roots <- roots(model)
+roots
+model1 <- data.frame(series)
+```
+Les racines du VAR sont inférieures à 1 en module, donc ce VAR(3,2) est bien stationnaire.
+
+### Question 3 : Rappeler la définition de la causalité au sens de Granger 
+
+Selon le cours, au sens de granger, on dit que la variable x cause la variable y si et seulement si la connsiance du passé de xt améliore la précision de yt pour tout horizon.
+
+### Question 4 : Faire un test de causalité au sens de granger et valider le fait que la troisième variable ne cause pas la première variable. Et prouver que la deuxième variable cause la troisième.
+On peut utiliser la fonction grangertest : 
+```{r obs32,}
+grangertest(X1 ~ X3, order = 2, data = model1)
+```
+Ici on remarque que le modèle qui écrit X1 avec X3 et X1 est moins bien que simplement avec X1. p>0.05 donc on conclut que X3 ne cause pas X1.
+```{r obs33,}
+grangertest(X3 ~ X2, order = 2, data = model1)
+```
+Ici on remarque que le modèle qui écrit X3 avec X3 et X2 est bien meilleur que simplement avec X3. p<0.05 donc on conclut que X2 cause X3.
+
+
+### Question 5 : Faire la réponse impulsionnelle du modèle et est ce que ca valide la structure du modèle ?
+```{r obs34,}
+newvar= VAR(model1,lag=2,type="const")
+reponse <- irf(newvar, impulse = c("X1", "X2", "X3"), response = c("X1", "X2", "X3"), n.ahead = 10, ortho = FALSE)
+plot(reponse)
+```
+
+On remarque qu'une fois un choc mis sur nos 3 variables, celle-ci retrouve leurs états initials après quelques temps. Cela indique une bonne stationnarité de nos séries étudiées.Donc notre stucture de VAR est bonne !
+
+### Question 6 : Expliquer ce qu'est la FEDV et afficher la FEDV de notre VAR.
+```{r obs35,}
+fevd <- fevd(newvar, n.ahead = 10)
+plot(fevd)
+```
+
+La FEVD signifie forevast eror variance decomposition et sert à analyser la contribution de chaque variable à la prévision des erreur de chaque autre variable du système. En gros, on peut comprendre les relations dans la prédiction de l'évolution des autres variables.
+Il existe une fonction sur R qui s'appelle fevd() qui nous permet justement de calculer ca.
+Ici on a la variable X1 qui a une contirbution de ses erreurs propres à elle comme pour X2. Cependant X3 a une contribution de X1 et X2 dans ses erreurs. Seule environ 50% de ses erreurs est expliquée par le contribution d'elle-même X3.
+
+
+# VAR for Real - Homework
+### Question 1 : Créer une base de donnée qui contient la data requis et plot les données. Proposez une interprétation économique et financière des probables liens entre ce jeu de variables.
+
+1ère variable : pente de la courbe des rdt (#anticipation du marché sur la croissance américaine)
+2ème variable : seuil d'inflation sur 10 ans {#inflation attendue}
+3ème variable : Indice VIX (volatilité implicite du s&p500)
+
+Importation de la courbe des taux :
+```{r obs36,}
+library(dplyr)
+yieldcurve<- read.csv("C:/Users/natha/Desktop/T10Y2Y.csv") %>%
+  mutate(DATE = as.Date(DATE, format = "%Y-%m-%d"),
+         T10Y2Y = as.numeric(T10Y2Y))
+plot(yieldcurve,type="l")
+```
+
+Importation de l'inflation rate :
+```{r obs37,}
+inflation<- read.csv("C:/Users/natha/Desktop/T10YIE.csv") %>%
+  mutate(DATE = as.Date(DATE, format = "%Y-%m-%d"),
+         T10YIE = as.numeric(T10YIE))
+plot(inflation,type="l")
+```
+
+Importation du VIX :
+```{r obs38,}
+vix<- read.csv("C:/Users/natha/Desktop/VIXCLS.csv") %>%
+  mutate(DATE = as.Date(DATE, format = "%Y-%m-%d"),
+         VIXCLS = as.numeric(VIXCLS))
+plot(vix,type="l")
+```
+
+
+Concernant la courbe de la pente de la courbe des rdt correspond à l'anticipation que le marché fait sur la croissance aux US. Lorsque celui-ci monte, cela signifie que les gens s'attendent à une bonne croissance économique au US dans les prochaines années. Et à l'inverse si cela descends cela signifie donc une chute de l'économie au US.
+Concernant la courbe de l'inflation, cela correspond de la même manière à une attente d'une augmentation de l'inflation si celle-ci monte et à l'inverse une baisse de cette dernière.
+Pour finir le VIX mesure la volatilite, donc le risque/incertitude que l'on pourrait avoir sur les marchés. Une période avec un VIX élévé, peut révélé donc de nombreux changements dans les prix des actifs sur le S&P500.
+En période de ralentissement économique : on s'attends à avoir un inversement de la pente des rendemments, une baisse de l'inflation et un VIX élevé car beaucoup d'incertitudes.
+En période d'accélération économique : on s'attends à avoir une pente des rendemments élevés, une augmentation de l'inflation et un VIX plus faible.
+
+### Question 2 : Regardons la stationnarité requise pour le test ADF et transformons les times series
+
+```{r obs39,}
+curves<- data.frame(yieldcurve, inflation, vix)
+clean <- na.omit(curves)
+yieldcurvec <- clean$T10Y2Y
+inflationc <- clean$T10YIE
+vixc <- clean$VIXCLS
+tsyieldcurve <- ts((yieldcurvec), frequency = 12)
+tsinflation <- ts((inflationc), frequency = 12)
+tsvix <- ts((vixc), frequency = 12)
+
+```
+
+ADF test sur le yield curve
+```{r obs40,}
+trendyieldcurve <- ur.df(tsyieldcurve, type="trend", selectlags=c("BIC"))
+summary(trendyieldcurve)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.96 contre -1.61 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Nous passons à l'étude du drift 
+```{r obs45,}
+driftyieldcurve <- ur.df(tsyieldcurve, type="drift", selectlags=c("BIC"))
+summary(driftyieldcurve)
+```
+Même constatation que précédemment, on a -2.86< -0.93 au seuil de 5% donc non stationnaire.
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r obs41,}
+diffyieldcurve = na.omit(diff(tsyieldcurve, differences = 1))
+difftrendyieldcurve <- ur.df(diffyieldcurve , type = "trend", selectlags = c("BIC"))
+summary(difftrendyieldcurve)
+```
+Maintenant, nous sommes bon, la courbe yield curve différenciée une fois est stationnaire car -3.41>-24.10 donc nous avons réussi à la rendre stationnaire et rejette H0.
+
+ADF test sur le inflation
+
+```{r pressure100,eval=FALSE}
+trendinflation <- ur.df(tsinflation, type="trend", selectlags=c("BIC"))
+summary(trendinflation)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.41 contre -2.23 pour la t-stat, on affirme donc que l'on conserve H0 donc une présence d'une racine unitaire (non stationnaire)
+Nous passons à l'étude du drift :
+```{r pressure101,eval=FALSE}
+driftinflation <- ur.df(tsinflation, type="drift", selectlags=c("BIC"))
+summary(driftinflation)
+```
+Même constatation que précédemment, on a -2.86< -1.65 au seuil de 5% donc non stationnaire.
+Pour enlever ces composants, on propose de différencier une fois et répéter un test ADF :
+```{r obs42,}
+diffinflation = na.omit(diff(tsinflation, differences = 1))
+difftrendinflation <- ur.df(diffinflation , type = "trend", selectlags = c("BIC"))
+summary(difftrendinflation)
+```
+Maintenant, nous sommes bon, la courbe inflation différenciée une fois est stationnaire car -3.41>-24.57 donc nous avons réussi à la rendre stationnaire et rejette H0.
+
+ADF test sur le VIX
+```{r obs43,}
+trendvix <- ur.df(tsvix, type="trend", selectlags=c("BIC"))
+summary(trendvix)
+```
+A 5%, on remarque que notre valeur de la valeur critique est de -3.41 > -3.69 donc on rejette H0 au seuil de 5% et on affirme que le VIX est déjà stationnaire.
+```{r obs44,}
+tsvix <- tsvix[-1]#supprime la première valeur pr avoir le même nombre de valeur car les deux autres séries étant différenciée une fois.
+```
+
+### Question 3 : Expliquer les critères d'informations et déterminer le nombre optimal de retard pour votre modèle.
+Il existe plusieurs critères d'informations qui servent à donner le nombre de retard optimal pour avoir le moins d'erreurs possibles et une calibration intéressante.
+BIC, correspond à un critère qui sous-estime souvent le nombre de retard donc plus simples
+AIC, correspond à un critère souvent qui sur-estime le nombre de retard. 
+Schwartz critère qui introduit une contrainte supplémentaire par rapport au AIC et qui réduit ainsi le nombre de retard optimaux.
+
+Nous allons calculer nos critères jusqu'à 5 retards : 
+```{r obs47,}
+bic <- numeric(5)
+aic <- numeric(5)
+diff <- data.frame(diffyieldcurve, diffinflation, tsvix)
+for (lag in 1:5){
+  var <- VAR(diff, p=lag, type="const")
+  bic[lag] <- BIC(var)
+  aic[lag] <- AIC(var)
+}
+print(aic)
+print(bic)
+#Je sélectionne maintenant le niveau de aic et bic le plus petit pour définir le nombre de retards à prendre.
+lagBIC <- which.min(bic)
+lagAIC <- which.min(aic)
+lagBIC
+lagAIC
+plag = lagBIC
+```
+
+Ainsi nous avons un lag optimal égal à 2 pour le BIC contre un lag optimal de 4 pour le AIC.
+Nous allons choisir le plus petit afin de simplifier notre modèle et le temps de calcul d'où celui retenu de 2.
+
+
+### Question 4 & 5 :Estimer le modèle et vérifier la stationnarité de notre modèle en affichant les racines du modèle.
+```{r obs48,}
+modelVAR = VAR(diff, p = plag, type = "const")
+modelVAR
+roots <- roots(modelVAR)
+roots
+```
+On remarque les racines obtenues sont toutes inférieures à 1 en module, ainsi le modèle VAR est stationnaire.
+
+### Question 6 : Réaliser tous les tests de causalité de Granger et confirmez votre intuitons.
+
+```{r obs54,}
+#Qui cause l'inflation ?
+grangertest(diffinflation ~ diffyieldcurve, order = 2, data = diff)
+grangertest(diffinflation ~ tsvix, order = 2, data = diff)
+
+#Qui cause la yield curve ?
+grangertest(diffyieldcurve ~ diffinflation, order = 2, data = diff)
+grangertest(diffyieldcurve ~ tsvix, order = 2, data = diff)
+
+#Qui cause le VIX?
+grangertest(tsvix ~ diffinflation, order = 2, data = diff)
+grangertest(tsvix ~ diffyieldcurve, order = 2, data = diff)
+
+```
+
+Le yield curve ne cause pas l'inflation car p = 0.748 >> 0.05. Cependant nous pouvons affirmer que le VIX cause l'inflation car p environ égale à 0.05 donc au seuil de 5%.
+On remarque également que l'inflation (p=0.11>0.05) ne cause pasla yield curve. Mais le VIX cause la yield curve  car la p value < 0.05.
+Et pour finir ni l'inflation et ni la yield curve ne cause le vix.
+
+### Question 7 : Faire tourner les tests de qualité. 
+```{r obs55,}
+#Test SERIAL CORRELATION
+serial <- serial.test(modelVAR)
+serial
+#Test ARCH 
+arch <- arch.test(modelVAR)
+arch
+#Test stabilité
+stability <- stability(modelVAR)
+plot(stability)
+```
+
+On remarque que pour le test de portmanteau la p value est bien inférieur à 0.05 donc on rejette H0 et donc on peut dire qu'il existe une corrélation entre les résidus. Donc le modèle n'arrive pas à capturer les interpendances entre les données , les résidus devrait être sans corrélation.
+Le test ARCH permet d'affirmer que la p value < 0.05 et donc il y a de l'hétéroscédasticité entre les résidus, ce qui confirme que le modèle n'arrive pas à être valable.
+Il y a une certaine instabilités dans les coefficients car ils varient beaucoup selon le graphe de stabilités. Mais cela reste tout de même correct vis à vis de l'intervalle de confiance.
+
+### Question 8 : Calculer et afficher tout les IRF et expliquer les résultats obtenus.
+```{r obs56,}
+irffinal <- irf(modelVAR, impulse = c("diffyieldcurve", "diffinflation", "tsvix"), response = c("diffyieldcurve", "diffinflation", "tsvix"), n.ahead = 10, ortho = FALSE)
+plot(irffinal)
+```
+
+On obtient des résultats qui sont pas très significatif à cause de leur grandes variances. Par contre, lorsque nous faisons une impulsion sur le VIX, la réponse de l'inflation est significative car le 0 n'appartient pas à l'intervalle de confiance et donc cela confirme nos premières observations.
+
+### Question 9 : Prédire 3 mois en utilisant les graphiques. Est ce que cela confirme notre théorie, regarder la FEDV et commenter.
+
+```{r obs57,}
+forecast <- predict(modelVAR, n.ahead = 3)
+chart <- fanchart(forecast, main = "Prédiction sur 3 mois")
+plot(fevd(modelVAR, n.ahead = 10))
+```
+
+La prédiction à 3 mois du VIX, on a que lorsque le VIX augmente rapidement (comme pour le pic à 200), on a en résultat une grosse variation sur l'inflation autour des 200. Ce qui signifie que ces 2 données sont très complémentaires.
+Au niveau de la prédiction des erreurs on a que l'erreur du la yield curve et inflation provient d'eux même. Cependant pour le vix, environ 10% provient du de l'inflation, ce qui confirme nos précédentes hypothèses.
+
+### Question 10 :Trouver une façon pour imposer de mettre 0 à certains coefficients. Ensuite tourner les estimations de IRF et commenter
+```{r obs58,}
+varconstraint = VAR(diff, p = 2)
+coefsconstraint <- coef(modelVAR)
+print(coefsconstraint)
+coefsconstraint$diffyieldcurve$tsvix<- 0
+irfconstraint <- irf(varconstraint, impulse = c("diffyieldcurve", "diffinflation", "tsvix"), response = c("diffyieldcurve", "diffinflation", "tsvix"), n.ahead = 10, ortho = FALSE)
+plot(irfconstraint)
+```
+
+Il n'y a pas de différence avec les graphes IRF tracés plus tôt alors que nous avons les coefficients de diffinflation et tsvix à 0, ce qui signifie qu'ils n'ont pas vraiment d'importance dans notre modèle/négligeable.
